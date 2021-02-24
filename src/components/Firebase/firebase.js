@@ -2,7 +2,6 @@ import app from 'firebase/app';
 import 'firebase/auth';
 import 'firebase/database';
 
-
 const config = {
   
     apiKey: "AIzaSyB5W1l-62WU4s3_YK8dP_I3PLKN_Hv7FOY",
@@ -12,7 +11,6 @@ const config = {
     messagingSenderId: "555810023158",
     databaseURL: "https://react-firebase-authentic-a7d30-default-rtdb.europe-west1.firebasedatabase.app",
     appId: "1:555810023158:web:2027b6397440cca0672ed7"
-
 };
 
 class Firebase {
@@ -24,10 +22,6 @@ class Firebase {
   }
 
   // *** Auth API ***
-
-  user = uid => this.db.ref(`users/${uid}`);
-  
-  users = () => this.db.ref('users');
 
   doCreateUserWithEmailAndPassword = (email, password) =>
     this.auth.createUserWithEmailAndPassword(email, password);
@@ -41,6 +35,41 @@ class Firebase {
 
   doPasswordUpdate = password =>
     this.auth.currentUser.updatePassword(password);
+
+  // *** Merge Auth and DB User API *** //
+
+  onAuthUserListener = (next, fallback) =>
+    this.auth.onAuthStateChanged(authUser => {
+      if (authUser) {
+        this.user(authUser.uid)
+          .once('value')
+          .then(snapshot => {
+            const dbUser = snapshot.val();
+
+            // default empty roles
+            if (!dbUser.roles) {
+              dbUser.roles = [];
+            }
+
+            // merge auth and db user
+            authUser = {
+              uid: authUser.uid,
+              email: authUser.email,
+              ...dbUser,
+            };
+
+            next(authUser);
+          });
+      } else {
+        fallback();
+      }
+    });
+
+  // *** User API ***
+
+  user = uid => this.db.ref(`users/${uid}`);
+
+  users = () => this.db.ref('users');
 }
 
-export default Firebase;
+export default Firebase
